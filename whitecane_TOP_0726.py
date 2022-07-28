@@ -1,7 +1,10 @@
 '''
 whitecane 탑레벨 실행파일
+
+07_28 노드 2개 테스트용
 '''
 #패키지
+import os
 import time
 import datetime
 import requests
@@ -9,10 +12,9 @@ import urllib.request
 from bs4 import BeautifulSoup
 from bluepy.btle import Scanner
 from selenium import webdriver
-from selenium.webdriver.support.ui import Select
+#from selenium.webdriver.support.ui import Select
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-
 
 #함수
 def indexfinder(MACaddr): #find nearest node's rssi & MAC address
@@ -28,7 +30,7 @@ def indexfinder(MACaddr): #find nearest node's rssi & MAC address
     #anchor filtering
     for device in devices:
         print("ADDR = {} RSSI = {}".format(device.addr, device.rssi))
-        for i in range(10):
+        for i in range(len(devices)):
             if(device.addr == MACaddr[i]):
                 RSSIval[i] = device.rssi * (-1)
                 print("detected. rssi value is =", RSSIval[i])
@@ -45,7 +47,7 @@ def indexfinder(MACaddr): #find nearest node's rssi & MAC address
             minRSSI = RSSIval[k]
             minINDEX = k
            
-    print("index for nearest node", minINDEX+1)
+    print("index for nearest node", minINDEX)
     return minRSSI, minINDEX
 def findlocation(node,rssi,path): #nearest node number, rssi, defined path(1 dimension array)
     thres = 60
@@ -224,8 +226,17 @@ def getmap(): #웹으로부터 그래프 가져오는 함수(미구현)
         [ INF, INF, INF, INF, INF, INF, INF, 1, INF, INF, 0]
         ]
 
+    graph = [ [0, 1],
+    [INF, 0]
+    ]
+
     return graph
-def alarmorder(alarm, URLADDR,control): #지정된 노드로 알림명령 전송. control이 0이면 알람 on, 1이면 알람 off
+
+def alarmorder(alarm,control): #지정된 노드로 알림명령 전송. control이 0이면 알람 on, 1이면 알람 off
+    URL0 = 'http://192.168.191.131'
+    URL1 = 'http://192.168.191.131'
+
+    URLaddr = [URL0,URL1]
     s = Service('/usr/local/bin/chromedriver') #라즈베리파이용 chromedriver 주소
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument('--no-sandbox')
@@ -234,16 +245,18 @@ def alarmorder(alarm, URLADDR,control): #지정된 노드로 알림명령 전송
     options.add_argument('--headless')
 
     driver = webdriver.Chrome(service=s,options=chrome_options)
-
-    driver.get(URLADDR[alarm])
-
+    print("adwdawdadwadadw")
+    print("IP addr is: ", URLaddr[alarm])
+    driver.get(URLaddr[alarm])
 
     if(control == 0):
-        driver.find_element("xpath",'/html/body/a[1]/button').click()
+        print("LED ON: ", alarm, "Node")
+        driver.find_element("xpath",'/html/body/a[1]').click()
 
     
     else:
-        driver.find_element("xpath",'/html/body/a[2]/button').click()
+        print("LED OFF: ", alarm, "Node")
+        driver.find_element("xpath",'/html/body/a[2]').click()
 def setup(): #IP,MAC주소 입력용
     arr1 = []
     arr2 = []
@@ -266,31 +279,32 @@ def setup(): #IP,MAC주소 입력용
 
     return arr1, arr2
 
+#각 노드별 url주소(IP), 화재발생여부
+URL0 = 'http://192.168.191.131'
+URL1 = 'http://192.168.191.131'
+
+URLaddr = [URL0,URL1]
+#URLaddr = URLaddr1.split(',')
+MACaddr = ["98:7b:f3:5e:38:2f", "98:d3:31:fc:32:03", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X", "X"]
+cutoff = [] #화재가 발생한 노드번호. 즉 차단된 노드
+discon = [] #통신이 불가능한 노드번호.
 
 #임의실행용 상수
 MAXM,INF = 100,10**7
-    
-
-#각 노드별 url주소(IP), 화재발생여부
-URLaddr = ["http://192.168.167.5"]
-MACaddr = ["98:7b:f3:5e:38:2f", "X" ,"X" ,"X" ,"X" ,"X" ,"X" ,"X" ,"X"]
-cutoff = [] #화재가 발생한 노드번호. 즉 차단된 노드
-discon = [] #통신이 불가능한 노드번호. 
-
 
 #전역변수
 location = 0 #현재 지팡이 위치(노드)
-fire = False #화재 발생 여부(bool)
+fire = True #화재 발생 여부(bool)
 V = 10 #총 노드 개수
 igraph = getmap() #건물 그래프
-Exit = [7] #탈출구 노드 인덱스
+Exit = [1] #탈출구 노드 인덱스
 firstexcute = True #길 안내 최초 시작 여부
 thres = 50 #rssi 임계값
 
-
 while(True):
     rssi, index = indexfinder(MACaddr) #지팡이 최근접 노드 rssi값, 노드 인덱스
-
+    print("for debug: index is ", index)
+    
     #노드 정보 갱신
     cutoff = [] 
     discon = [] 
@@ -324,9 +338,17 @@ while(True):
 
         if(firstexcute == True):
             while(True):
-                alarmorder(index, URLaddr[index],0)#최단거리 노드에 도착하도록 알림 전송
+                print("for debug: line 333 excuted")
+                #try:
+                    #no_space = URLaddr[index].encode('acsii', 'ignore').decode('unicode_escape')
+                alarmorder(index,0)#최단거리 노드에 도착하도록 알림 전송
+                #except:
+                   # print("try - except excuted")
+                   # os.system('sudo python3 bell.py')                    
+                
                 rssi, index = indexfinder(MACaddr) #rssi값 갱신
                 if(rssi < thres): #rssi가 미리 지정된 임계값 thres보다 작다면
+                    print("for debug: firstexcute turns False")
                     firstexcute = False #최초 실행단계는 벗어났다고 판단
                     break #그 후 반복문 중단 - 최근접 노드에 위치시키는 과정 중단
 
@@ -355,7 +377,7 @@ while(True):
             location, index_node = findlocation(index, rssi, path_final)
 
             #경로상 다음 노드에 알람을 전송
-            alarmorder(path_final[index_node + 1], URLaddr[path_final[index_node + 1]],0)
+            alarmorder(path_final[index_node + 1],0)
     else:
         print("화재 발생하지 않음")
         time.sleep(5)
